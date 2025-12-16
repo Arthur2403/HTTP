@@ -1,7 +1,7 @@
-﻿<Window x:Class="GoogleSearchWpf.MainWindow"
+﻿<Window x:Class="ImageSearchWpf.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Multi Search (Google / DuckDuckGo / Wikipedia)" Height="520" Width="900">
+    Title="Image Search" Height="500" Width="700">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -10,36 +10,22 @@
         </Grid.RowDefinitions>
 
 
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBox x:Name="QueryTextBox" Width="420" Height="30" FontSize="14"
-                VerticalContentAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBox x:Name="QueryTextBox" Width="350" Height="30"/>
             <Button Content="Шукати" Width="120" Height="30" Margin="10,0,0,0"
                 Click="SearchButton_Click" />
         </StackPanel>
 
 
-        <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,10">
             <CheckBox x:Name="GoogleCheck" Content="Google" IsChecked="True" Margin="0,0,20,0"/>
             <CheckBox x:Name="DuckCheck" Content="DuckDuckGo" IsChecked="True" Margin="0,0,20,0"/>
             <CheckBox x:Name="WikiCheck" Content="Wikipedia" IsChecked="False"/>
         </StackPanel>
 
 
-
-        <ListView x:Name="ResultsList" Grid.Row="2">
-            <ListView.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderThickness="1" BorderBrush="LightGray" Padding="8" Margin="0,0,0,8">
-                        <StackPanel>
-                            <TextBlock Text="{Binding Source}" FontStyle="Italic" Foreground="Gray"/>
-                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14" />
-                            <TextBlock Text="{Binding Snippet}" TextWrapping="Wrap" Margin="0,4,0,4" />
-                            <TextBlock Text="{Binding Link}" Foreground="Blue" Cursor="Hand"
-                                MouseLeftButtonUp="Link_Click" />
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+        <ScrollViewer Grid.Row="2">
+            <StackPanel x:Name="ImagesPanel" />
+        </ScrollViewer>
     </Grid>
 </Window>

@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 
-
-namespace GoogleSearchWpf
+namespace ImageSearchWpf
 {
     public partial class MainWindow : Window
     {
@@ -31,122 +29,90 @@ namespace GoogleSearchWpf
             if (string.IsNullOrWhiteSpace(QueryTextBox.Text)) return;
 
 
-            ResultsList.ItemsSource = null;
-            var all = new List<SearchItem>();
+            ImagesPanel.Children.Clear();
 
 
-            try
-            {
-                if (GoogleCheck.IsChecked == true)
-                    all.AddRange(await SearchGoogle(QueryTextBox.Text));
+            if (GoogleCheck.IsChecked == true)
+                await LoadImage("Google", await SearchGoogleImage(QueryTextBox.Text));
 
 
-                if (DuckCheck.IsChecked == true)
-                    all.AddRange(await SearchDuckDuckGo(QueryTextBox.Text));
+            if (DuckCheck.IsChecked == true)
+                await LoadImage("DuckDuckGo", await SearchDuckImage(QueryTextBox.Text));
 
 
-                if (WikiCheck.IsChecked == true)
-                    all.AddRange(await SearchWikipedia(QueryTextBox.Text));
-
-
-                ResultsList.ItemsSource = all;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "Помилка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            if (WikiCheck.IsChecked == true)
+                await LoadImage("Wikipedia", await SearchWikiImage(QueryTextBox.Text));
         }
 
-        private async Task<List<SearchItem>> SearchGoogle(string q)
+        private async Task<string?> SearchGoogleImage(string q)
         {
-            var url = $"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&q={Uri.EscapeDataString(q)}";
-            var r = await _http.GetFromJsonAsync<GoogleResponse>(url);
-
-
-            return r?.Items?.Select(i => new SearchItem
-            {
-                Source = "Google",
-                Title = i.Title,
-                Link = i.Link,
-                Snippet = i.Snippet
-            }).ToList() ?? new List<SearchItem>();
+            var url = $"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&searchType=image&num=1&q={Uri.EscapeDataString(q)}";
+            var r = await _http.GetFromJsonAsync<GoogleImageResponse>(url);
+            return r?.Items?[0]?.Link;
         }
 
-        private async Task<List<SearchItem>> SearchDuckDuckGo(string q)
+        private async Task<string?> SearchDuckImage(string q)
         {
             var url = $"https://api.duckduckgo.com/?q={Uri.EscapeDataString(q)}&format=json";
             var json = await _http.GetStringAsync(url);
             using var doc = JsonDocument.Parse(json);
 
 
-            var list = new List<SearchItem>();
-            if (doc.RootElement.TryGetProperty("RelatedTopics", out var topics))
-            {
-                foreach (var t in topics.EnumerateArray())
-                {
-                    if (t.TryGetProperty("Text", out var text) && t.TryGetProperty("FirstURL", out var link))
-                    {
-                        list.Add(new SearchItem
-                        {
-                            Source = "DuckDuckGo",
-                            Title = text.GetString() ?? "",
-                            Link = link.GetString() ?? "",
-                            Snippet = text.GetString() ?? ""
-                        });
-                    }
-                }
-            }
-            return list;
+            if (doc.RootElement.TryGetProperty("Image", out var img))
+                return img.GetString();
+
+
+            return null;
         }
-        private async Task<List<SearchItem>> SearchWikipedia(string q)
+
+        private async Task<string?> SearchWikiImage(string q)
         {
-            var url = $"https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&srsearch={Uri.EscapeDataString(q)}";
+            var url = $"https://en.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(q)}";
             var json = await _http.GetStringAsync(url);
             using var doc = JsonDocument.Parse(json);
 
 
-            var list = new List<SearchItem>();
-            var results = doc.RootElement.GetProperty("query").GetProperty("search");
-            foreach (var r in results.EnumerateArray())
-            {
-                var title = r.GetProperty("title").GetString() ?? "";
-                list.Add(new SearchItem
-                {
-                    Source = "Wikipedia",
-                    Title = title,
-                    Snippet = r.GetProperty("snippet").GetString() ?? "",
-                    Link = $"https://en.wikipedia.org/wiki/{title.Replace(' ', '_')}"
-                });
-            }
-            return list;
+            if (doc.RootElement.TryGetProperty("thumbnail", out var thumb))
+                return thumb.GetProperty("source").GetString();
+
+
+            return null;
         }
-
-
-        private void Link_Click(object sender, MouseButtonEventArgs e)
+        private async Task LoadImage(string source, string? url)
         {
-            if (sender is System.Windows.Controls.TextBlock tb)
-                Process.Start(new ProcessStartInfo(tb.Text) { UseShellExecute = true });
+            if (string.IsNullOrWhiteSpace(url)) return;
+
+
+            var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
+            stack.Children.Add(new TextBlock { Text = source, FontWeight = FontWeights.Bold });
+
+
+            var img = new Image { Height = 200, Margin = new Thickness(0, 5, 0, 0) };
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.UriSource = new Uri(url);
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.EndInit();
+
+
+            img.Source = bitmap;
+            img.MouseLeftButtonUp += (_, __) =>
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+
+
+            stack.Children.Add(img);
+            ImagesPanel.Children.Add(stack);
+            await Task.CompletedTask;
         }
     }
-    public class SearchItem
+    public class GoogleImageResponse
     {
-        public string Source { get; set; } = "";
-        public string Title { get; set; } = "";
-        public string Snippet { get; set; } = "";
-        public string Link { get; set; } = "";
+        public GoogleImageItem[]? Items { get; set; }
     }
 
 
-    public class GoogleResponse
+    public class GoogleImageItem
     {
-        public List<GoogleItem>? Items { get; set; }
-    }
-
-
-    public class GoogleItem
-    {
-        public string Title { get; set; } = "";
         public string Link { get; set; } = "";
-        public string Snippet { get; set; } = "";
     }
 }
